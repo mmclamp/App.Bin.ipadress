@@ -1,0 +1,146 @@
+/* 主题变量：由 <head> 内联脚本与 app.js 写入 html[data-theme] 控制（自动跟随 fnOS 桌面） */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --text: #24292f;
+  --muted: #6a737d;
+  --line: #d9dde3;
+  --primary: #3370ff;
+  --primary-dark: #245bdb;
+  --ok: #1a9e55;
+  --err: #d03a3a;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #131417;
+  --card: #1e2024;
+  --text: #eceef1;
+  --muted: #a2a8b0;
+  --line: #3d4149;
+  --primary: #5b8dff;
+  --primary-dark: #7ba3ff;
+  --ok: #3ecf7a;
+  --err: #f16a6a;
+}
+* { box-sizing: border-box; }
+/* hidden 属性优先级必须高于任何 display 规则（如 .form-row 的 flex） */
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 16px 20px 4px;
+}
+header h1 { font-size: 20px; margin: 0; }
+.ver { color: var(--muted); font-size: 12px; }
+.header-actions { margin-left: auto; }
+#btn-theme { font-size: 12px; color: var(--muted); }
+main { padding: 12px 20px 32px; max-width: 860px; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.card h2 { font-size: 15px; margin: 0 0 12px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.kv { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kv label { color: var(--muted); font-size: 12px; }
+.kv b {
+  font-size: 15px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#st-ip { cursor: pointer; }
+#st-ip:hover { color: var(--primary); text-decoration: underline; }
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: var(--card);
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  z-index: 99;
+}
+.form-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+.form-row label { font-size: 13px; }
+.form-row small { color: var(--muted); font-weight: normal; }
+input[type=text], input[type=password], textarea, select {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+textarea { resize: vertical; }
+input:focus, textarea:focus, select:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+.actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.spacer { flex: 1; }
+button {
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+button:hover { border-color: var(--primary); }
+button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+button.primary:hover { background: var(--primary-dark); }
+button.small { padding: 3px 10px; font-size: 12px; }
+button.danger { color: var(--err); }
+button:disabled { opacity: .5; cursor: default; }
+.hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; min-height: 1em; white-space: pre-wrap; }
+.hint.ok { color: var(--ok); }
+.hint.err { color: var(--err); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { color: var(--muted); font-weight: normal; }
+td code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; word-break: break-all; }
+.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; background: var(--bg); border: 1px solid var(--line); }
+.tag.on { color: var(--ok); }
+.tag.off { color: var(--muted); }
+dialog {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--text);
+  width: 460px;
+  max-width: 92vw;
+  padding: 18px 20px;
+}
+dialog::backdrop { background: rgba(0,0,0,.4); }
+.logs {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.logs .row { white-space: pre-wrap; word-break: break-all; }
+.logs .t { color: var(--muted); margin-right: 8px; }
+.logs .err { color: var(--err); }
+.empty { color: var(--muted); }

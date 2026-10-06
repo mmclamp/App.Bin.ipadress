@@ -1,0 +1,17 @@
+{
+  ".url": {
+    "ipaddress.main": {
+      "title": "IP 通知",
+      "icon": "images/icon_{0}.png",
+      "type": "iframe",
+      "protocol": "",
+      "gatewayPrefix": "/app/ipaddress",
+      "gatewaySocket": "app.sock",
+      "url": "/app/ipaddress/?v=0.1.7",
+      "allUsers": false,
+      "control": {
+        "accessPerm": "readonly"
+      }
+    }
+  }
+}

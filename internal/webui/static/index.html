@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>IP 通知</title>
+<script>
+/* 首屏前确定主题：手动设置 > fnOS 桌面亮度（同源 iframe 可读父页）> 系统偏好 */
+(function () {
+  try {
+    var t = localStorage.getItem('theme') || 'auto';
+    var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (t === 'auto') {
+      try {
+        var pd = window.parent && window.parent.document;
+        var el = pd && (pd.body || pd.documentElement);
+        if (el) {
+          var m = (getComputedStyle(el).backgroundColor.match(/-?\d+(\.\d+)?/g) || []).map(Number);
+          var opaque = m.length >= 3 && (m.length < 4 || m[3] > 0);
+          if (opaque) dark = (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) / 255 < 0.5;
+        }
+      } catch (e) { /* 跨域父页则退回系统偏好 */ }
+    } else {
+      dark = (t === 'dark');
+    }
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  } catch (e) { /* 保持默认亮色 */ }
+})();
+</script>
+<link rel="stylesheet" href="static/style.css?v={BUILD}">
+</head>
+<body>
+<header>
+  <h1>IP 通知</h1>
+  <span class="ver" id="ver"></span>
+  <span class="header-actions"><button id="btn-theme" class="small">主题：自动</button></span>
+</header>
+
+<div id="toast" hidden></div>
+
+<main>
+  <!-- 状态 -->
+  <section class="card">
+    <h2>运行状态</h2>
+    <div class="grid">
+      <div class="kv"><label>当前公网 IP <small>（点击复制）</small></label><b id="st-ip" title="">—</b></div>
+      <div class="kv"><label>上次发送</label><span id="st-last">—</span></div>
+      <div class="kv"><label>下次执行</label><span id="st-next">—</span></div>
+      <div class="kv"><label>启用渠道</label><span id="st-channels">—</span></div>
+      <div class="kv"><label>接口诊断</label><span id="st-diag">检测中…</span></div>
+    </div>
+    <div class="actions">
+      <button id="btn-send" class="primary">立即推送</button>
+      <button id="btn-refresh">刷新</button>
+    </div>
+    <p class="hint" id="send-result"></p>
+  </section>
+
+  <!-- 发送设置 -->
+  <section class="card">
+    <h2>发送设置</h2>
+    <div class="form-row">
+      <label>Cron 表达式 <small>（分 时 日 月 周，例如 0 9 * * * 表示每天 9 点）</small></label>
+      <input id="cfg-cron" type="text" placeholder="0 9 * * *">
+    </div>
+    <div class="form-row">
+      <label>全局消息模板 <small>（占位符：{ip} 公网IP、{date} 日期、{time} 时间、{hostname} 主机名；例如 http://{ip}:5000/xxx）</small></label>
+      <textarea id="cfg-template" rows="3" placeholder="{ip}"></textarea>
+    </div>
+    <div class="actions">
+      <button id="btn-save-cfg" class="primary">保存设置</button>
+    </div>
+    <p class="hint" id="cfg-result"></p>
+  </section>
+
+  <!-- 渠道 -->
+  <section class="card">
+    <h2>通知渠道</h2>
+    <table id="ch-table">
+      <thead><tr><th>名称</th><th>类型</th><th>启用</th><th>Webhook</th><th>模板覆盖</th><th>操作</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="actions">
+      <button id="btn-add" class="primary">添加渠道</button>
+    </div>
+  </section>
+
+  <!-- 渠道编辑对话框 -->
+  <dialog id="dlg">
+    <h3 id="dlg-title">编辑渠道</h3>
+    <div class="form-row">
+      <label>渠道类型</label>
+      <select id="f-type">
+        <option value="feishu">飞书机器人（webhook）</option>
+        <option value="feishu-app">飞书自建应用（推荐）</option>
+        <option value="dingtalk">钉钉机器人</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>名称</label>
+      <input id="f-name" type="text" placeholder="如：我的飞书群">
+    </div>
+    <div class="form-row webhook-only">
+      <label>Webhook 地址</label>
+      <input id="f-webhook" type="text" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/...">
+    </div>
+    <div class="form-row webhook-only">
+      <label>加签密钥 <small>（可选；钉钉安全设置选择"加签"时填写）</small></label>
+      <input id="f-secret" type="password" placeholder="">
+    </div>
+    <div class="form-row app-only" hidden>
+      <label>App ID <small>（开放平台 → 凭证与基础信息）</small></label>
+      <input id="f-appid" type="text" placeholder="cli_xxx">
+    </div>
+    <div class="form-row app-only" hidden>
+      <label>App Secret <small>（同页获取）</small></label>
+      <input id="f-appsecret" type="password" placeholder="">
+    </div>
+    <div class="form-row app-only" hidden>
+      <label>接收 ID <small>（oc_ 开头=群 chat_id，ou_ 开头=单聊 open_id）</small></label>
+      <input id="f-receiveid" type="text" placeholder="oc_xxx / ou_xxx">
+    </div>
+    <div class="form-row app-only" hidden>
+      <label>接收 ID 怎么拿？</label>
+      <p class="hint">群：把应用机器人拉进群后，可通过接口 <code>GET /open-apis/im/v1/chats</code> 查询可见群列表获取
+        chat_id；单聊：需机器人可用范围内并向机器人发过消息。详见 README。</p>
+    </div>
+    <div class="form-row">
+      <label>模板覆盖 <small>（留空使用全局模板）</small></label>
+      <textarea id="f-template" rows="2" placeholder="http://{ip}:5000/xxx"></textarea>
+    </div>
+    <div class="form-row checkbox-row">
+      <label><input id="f-enabled" type="checkbox" checked> 启用该渠道</label>
+    </div>
+    <p class="hint webhook-only">飞书/钉钉机器人需在群设置中添加"自定义机器人"获取 Webhook；钉钉若启用"加签"安全设置，请填入密钥。</p>
+    <div class="actions">
+      <button id="dlg-test">测试发送</button>
+      <span class="spacer"></span>
+      <button id="dlg-cancel">取消</button>
+      <button id="dlg-ok" class="primary">保存</button>
+    </div>
+    <p class="hint" id="dlg-result"></p>
+  </dialog>
+
+  <!-- 日志 -->
+  <section class="card">
+    <h2>最近日志</h2>
+    <div id="logs" class="logs"></div>
+  </section>
+</main>
+
+<script>
+/* 全局 JS 错误捕获：页面任何异常都直接显示在状态卡，便于排查 */
+window.onerror = function (msg, src, line) {
+  try {
+    var el = document.getElementById('st-diag');
+    if (el) {
+      el.textContent = 'JS 错误: ' + msg + ' @' + (src || '').split('/').pop() + ':' + line;
+      el.style.color = 'var(--err)';
+    }
+  } catch (e) { /* 忽略 */ }
+};
+</script>
+<script src="static/app.js?v={BUILD}"></script>
+</body>
+</html>

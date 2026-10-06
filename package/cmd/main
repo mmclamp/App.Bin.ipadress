@@ -1,0 +1,102 @@
+#!/bin/bash
+# 飞牛 fnOS 应用生命周期脚本：start / stop / status
+# 结构参照官方 Native 应用案例（pidfile 模式）。
+# 注意：fnpack 打包时会剥离 app/ 前缀，安装后程序位于 ${TRIM_APPDEST} 根下。
+
+LOG_FILE="${TRIM_PKGVAR}/app.log"
+PID_FILE="${TRIM_PKGVAR}/app.pid"
+BIN="${TRIM_APPDEST}/bin/ipaddressd"
+SOCKET="${TRIM_APPDEST}/app.sock"
+
+# 任何错误都写入 TRIM_TEMP_LOGFILE，fnOS 界面会展示给用户，避免"原因未知"。
+on_error() {
+  local code=$?
+  { echo "cmd/main 第 ${LINENO} 行退出码 ${code}"
+    echo "BIN=${BIN} 存在=$([ -e "$BIN" ] && echo yes || echo no)"
+    echo "TRIM_PKGVAR=${TRIM_PKGVAR} 可写=$([ -w "${TRIM_PKGVAR:-/nonexistent}" ] && echo yes || echo no)"
+  } >> "${TRIM_TEMP_LOGFILE:-/dev/null}" 2>/dev/null || true
+  exit "$code"
+}
+
+log_msg() {
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+check_process() {
+  kill -0 "$1" 2>/dev/null
+}
+
+status_app() {
+  if [ -f "$PID_FILE" ]; then
+    local pid
+    pid="$(head -n 1 "$PID_FILE" 2>/dev/null | tr -d '[:space:]')"
+    if [ -n "$pid" ] && check_process "$pid"; then
+      return 0
+    fi
+    rm -f "$PID_FILE" 2>/dev/null || true
+  fi
+  return 1
+}
+
+start_app() {
+  if status_app; then
+    return 0
+  fi
+
+  if [ ! -x "$BIN" ]; then
+    echo "未找到可执行文件: $BIN" >> "${TRIM_TEMP_LOGFILE:-/dev/null}" 2>/dev/null || true
+    exit 1
+  fi
+
+  log_msg "Starting ipaddress..."
+  mkdir -p "$TRIM_PKGVAR" "$TRIM_PKGETC" 2>/dev/null || true
+  cd "$TRIM_APPDEST" || exit 1
+  "$BIN" daemon \
+    --socket "$SOCKET" \
+    --config "$TRIM_PKGETC/config.json" \
+    --data "$TRIM_PKGVAR" >> "$LOG_FILE" 2>&1 &
+  echo "$!" > "$PID_FILE" 2>/dev/null || true
+}
+
+stop_app() {
+  log_msg "Stopping ipaddress..."
+  if [ ! -f "$PID_FILE" ]; then
+    return 0
+  fi
+  local pid
+  pid="$(head -n 1 "$PID_FILE" 2>/dev/null | tr -d '[:space:]')"
+  if [ -z "$pid" ] || ! check_process "$pid"; then
+    rm -f "$PID_FILE" 2>/dev/null || true
+    return 0
+  fi
+  kill -TERM "$pid" 2>/dev/null || true
+  local count=0
+  while check_process "$pid" && [ "$count" -lt 10 ]; do
+    sleep 1
+    count=$((count + 1))
+  done
+  if check_process "$pid"; then
+    kill -KILL "$pid" 2>/dev/null || true
+  fi
+  rm -f "$PID_FILE" 2>/dev/null || true
+  rm -f "$SOCKET" 2>/dev/null || true
+}
+
+case "$1" in
+  start)
+    start_app
+    ;;
+  stop)
+    stop_app
+    ;;
+  status)
+    if status_app; then
+      exit 0
+    fi
+    exit 3
+    ;;
+  *)
+    echo "Unknown command: $1" >> "${TRIM_TEMP_LOGFILE:-/dev/null}" 2>/dev/null || true
+    exit 1
+    ;;
+esac
