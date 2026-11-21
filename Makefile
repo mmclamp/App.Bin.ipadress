@@ -1,6 +1,6 @@
 # 飞牛 fnOS 原生应用「IP 通知」
 GO ?= go
-ENV := GOTOOLCHAIN=go1.22.12 GOPROXY=https://goproxy.cn,direct CGO_ENABLED=0
+ENV := GOPROXY=https://goproxy.cn,direct CGO_ENABLED=0
 
 .PHONY: test build dev clean fpk
 
@@ -12,7 +12,7 @@ test:
 build:
 	./scripts/build.sh
 
-# 打包 .fpk（需要 fnpack）
+# 打包 .fpk（fnpack 随项目在 scripts/fnpack）
 fpk: build
 	./scripts/build.sh --fpk
 

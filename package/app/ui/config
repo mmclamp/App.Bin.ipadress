@@ -7,7 +7,7 @@
       "protocol": "",
       "gatewayPrefix": "/app/ipaddress",
       "gatewaySocket": "app.sock",
-      "url": "/app/ipaddress/?v=0.1.7",
+      "url": "/app/ipaddress/?v=0.1.8",
       "allUsers": false,
       "control": {
         "accessPerm": "readonly"

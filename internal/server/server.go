@@ -25,9 +25,6 @@ import (
 	"ipaddress/internal/webui"
 )
 
-// probeClient 公网 IP 探测共用客户端。
-var probeClient = &http.Client{Timeout: 30 * time.Second}
-
 // sendJobTimeout 单次推送任务整体超时（探测 + 全部渠道）。
 const sendJobTimeout = 60 * time.Second
 
@@ -60,7 +57,7 @@ type Server struct {
 func New(deps Deps, logs *logstore.Ring, st *state.Store) (*Server, error) {
 	if deps.Probe == nil {
 		deps.Probe = func(ctx context.Context) (string, error) {
-			return ipprobe.PublicIP(ctx, probeClient)
+			return ipprobe.PublicIP(ctx)
 		}
 	}
 	cfg, err := config.Load(deps.ConfigPath)

@@ -1,12 +1,12 @@
 # IP 通知（ipaddress）— 飞牛 fnOS 原生应用
 
-定时获取 NAS 的**公网 IP**，通过**飞书 / 钉钉机器人 Webhook** 推送通知。Go 语言实现的 fnOS **原生应用**（非 Docker），通过**统一网关**提供 Web 配置页，复用 NAS 登录态鉴权。
+定时获取 NAS 的**公网 IPv6**，通过**飞书 / 钉钉机器人 Webhook** 推送通知。Go 语言实现的 fnOS **原生应用**（非 Docker），通过**统一网关**提供 Web 配置页，复用 NAS 登录态鉴权。
 
 ## 功能
 
-- ✅ 公网 IP 探测：多源依序 fallback（ipip.net → ip.sb → 3322.net → ipify），校验拒绝私网/CGNAT/环回地址
+- ✅ 公网 IPv6 获取：直接读取本机网卡全局地址（零外部依赖、无网络等待），仅接受 2000::/3 公网地址，排除 ULA/链路本地/环回等
 - ✅ Cron 定时推送（5 段式表达式，配置保存后立即生效）
-- ✅ 消息模板：`{ip}`、`{date}`、`{time}`、`{hostname}`，例如 `http://{ip}:5000/xxx` 仅替换 IP
+- ✅ 消息模板：`{ip}`、`{date}`、`{time}`、`{hostname}`，例如 `http://[{ip}]:5000/xxx` 仅替换 IP（IPv6 裸地址，拼端口需方括号）
 - ✅ 多渠道：飞书 webhook（可选加签）、**飞书自建应用**（tenant_access_token 自动缓存/刷新）、钉钉（可选加签），界面增删改 + 单渠道测试发送
 - ✅ Web 配置页：状态 / 设置 / 渠道 / 日志，走 fnOS 统一网关（`/app/ipaddress`），仅管理员可改配置
 - ✅ CLI：`ipaddressd send` 可挂 fnOS 计划任务；`serve` 子命令用于本机开发
@@ -17,7 +17,7 @@
 ├── cmd/ipaddressd/        # 主程序（daemon/send/serve/version 子命令)
 ├── internal/
 │   ├── config/            # 配置读写校验（config.json）
-│   ├── ipprobe/           # 公网 IP 多源探测
+│   ├── ipprobe/           # 公网 IPv6 网卡读取
 │   ├── channel/           # 渠道接口 + 飞书/钉钉实现（扩展点）
 │   ├── render/            # 模板占位符替换
 │   ├── scheduler/         # cron 调度（robfig/cron/v3）
@@ -47,7 +47,7 @@ make build         # 交叉编译 linux/amd64 → package/app/bin/ipaddressd
 
 ## 打包 .fpk
 
-fnpack 官方下载（v1.2.3，按平台选择）：
+fnpack（v1.2.3 darwin-arm64）已随项目存放于 `scripts/fnpack`，build.sh 默认直接使用，无需安装。其他平台从官方下载后放到 `scripts/fnpack`：
 
 ```
 https://static2.fnnas.com/fnpack/fnpack-1.2.3-darwin-arm64
@@ -55,9 +55,7 @@ https://static2.fnnas.com/fnpack/fnpack-1.2.3-linux-amd64
 ```
 
 ```bash
-curl -o /tmp/fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.3-darwin-arm64
-chmod +x /tmp/fnpack
-FNPACK_BIN=/tmp/fnpack ./scripts/build.sh --fpk
+./scripts/build.sh --fpk
 # 产物: dist/ipaddress.fpk
 ```
 
@@ -77,12 +75,12 @@ FNPACK_BIN=/tmp/fnpack ./scripts/build.sh --fpk
 
 | 占位符 | 含义 | 示例 |
 |---|---|---|
-| `{ip}` | 公网 IP | `203.0.113.7` |
+| `{ip}` | 公网 IPv6 | `2408:871a:18a0:400::130` |
 | `{date}` | 日期 | `2026-10-06` |
 | `{time}` | 时间 | `09:00:00` |
 | `{hostname}` | 主机名 | `fnos` |
 
-若探测到 IPv6，拼接 `ip:port` 形式 URL 时请写成 `http://[{ip}]:5000/xxx`（方括号需自己加，`{ip}` 始终替换为裸地址）。
+`{ip}` 是 IPv6 裸地址，拼接 `ip:port` 形式 URL 时请写成 `http://[{ip}]:5000/xxx`（方括号需自己加，`{ip}` 始终替换为裸地址）。
 
 ## 渠道类型
 

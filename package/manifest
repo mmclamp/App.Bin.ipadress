@@ -1,7 +1,7 @@
 appname=ipaddress
-version=0.1.7
+version=0.1.8
 display_name=IP 通知
-desc=定时获取本机公网 IP，通过飞书/钉钉机器人 Webhook 推送通知。支持 Cron 定时、消息模板（如 http://{ip}:5000/xxx 仅替换 IP）、多渠道管理与测试发送。
+desc=定时读取本机网卡获取公网 IPv6，通过飞书/钉钉机器人 Webhook 推送通知。支持 Cron 定时、消息模板（如 http://[{ip}]:5000/xxx）、多渠道管理与测试发送。
 maintainer=mumu
 distributor=mumu
 platform=x86

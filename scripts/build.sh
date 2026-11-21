@@ -18,9 +18,10 @@ chmod +x package/app/bin/ipaddressd
 
 if [ "${1:-}" = "--fpk" ]; then
   echo "==> 打包 .fpk"
-  FNPACK_BIN="${FNPACK_BIN:-fnpack}"
+  FNPACK_BIN="${FNPACK_BIN:-scripts/fnpack}"
   if ! command -v "$FNPACK_BIN" >/dev/null 2>&1; then
-    echo "错误: 未找到 fnpack。请从 developer.fnnas.com 下载对应平台二进制放入 PATH，" >&2
+    echo "错误: 未找到 fnpack。请下载对应平台二进制放到 scripts/fnpack：" >&2
+    echo "      curl -o scripts/fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.3-darwin-arm64 && chmod +x scripts/fnpack" >&2
     echo "      或通过环境变量 FNPACK_BIN=/绝对路径/fnpack 指定。" >&2
     exit 1
   fi

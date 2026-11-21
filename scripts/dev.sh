@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-ENV="GOTOOLCHAIN=go1.22.12 GOPROXY=https://goproxy.cn,direct CGO_ENABLED=0"
+ENV="GOPROXY=https://goproxy.cn,direct CGO_ENABLED=0"
 BIN=/tmp/ipaddressd-dev
 DATA=/tmp/ipaddress-dev-data
 

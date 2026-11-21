@@ -2,73 +2,69 @@ package ipprobe
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
+	"net"
+	"strings"
 	"testing"
 )
 
-func TestValidPublicIP(t *testing.T) {
+// ipaddr 构造测试用 net.Addr（掩码长度不影响本包逻辑）。
+func ipaddr(s string) net.Addr {
+	ip := net.ParseIP(s)
+	mask := net.CIDRMask(64, 128)
+	if ip.To4() != nil {
+		mask = net.CIDRMask(24, 32)
+	}
+	return &net.IPNet{IP: ip, Mask: mask}
+}
+
+func TestFirstGlobalIPv6(t *testing.T) {
 	cases := []struct {
-		in      string
+		name    string
+		addrs   []net.Addr
 		want    string
 		wantErr bool
 	}{
-		{"203.0.113.7\n", "203.0.113.7", false},
-		{"当前 IP：203.0.113.7  来自于：中国", "203.0.113.7", false},
-		{"2001:db8::1", "2001:db8::1", false},
-		{"192.168.1.10", "", true},     // 私网
-		{"10.0.0.5", "", true},         // 私网
-		{"127.0.0.1", "", true},        // 环回
-		{"100.64.0.1", "", true},       // CGNAT
-		{"224.0.0.1", "", true},        // 组播
-		{"no ip here", "", true},       // 无 IP
-		{"999.999.999.999", "", true},  // 非法（正则可匹配但 ParseIP 拒绝）
+		{"跳过私网 v4 与链路本地，取全局 v6", []net.Addr{
+			ipaddr("192.168.1.10"), ipaddr("fe80::1"), ipaddr("2409:871a:18a0:400::130"),
+		}, "2409:871a:18a0:400::130", false},
+		{"ULA 私网被排除", []net.Addr{
+			ipaddr("fd12:3456:789a::1"), ipaddr("2409:871a:18a0:400::131"),
+		}, "2409:871a:18a0:400::131", false},
+		{"组播与环回被排除", []net.Addr{
+			ipaddr("ff02::1"), ipaddr("::1"), ipaddr("2409:871a:18a0:400::132"),
+		}, "2409:871a:18a0:400::132", false},
+		{"IPv4 映射形式被排除", []net.Addr{
+			ipaddr("::ffff:203.0.113.7"), ipaddr("2409:871a:18a0:400::133"),
+		}, "2409:871a:18a0:400::133", false},
+		{"多个全局取首个", []net.Addr{
+			ipaddr("2409:871a:18a0:400::134"), ipaddr("2409:871a:18a0:400::135"),
+		}, "2409:871a:18a0:400::134", false},
+		{"仅 v4 时报错", []net.Addr{ipaddr("192.168.1.10"), ipaddr("10.0.0.5")}, "", true},
+		{"空列表报错", []net.Addr{}, "", true},
 	}
 	for _, c := range cases {
-		got, err := ValidPublicIP(c.in)
-		if c.wantErr {
-			if err == nil {
-				t.Errorf("ValidPublicIP(%q) 应报错，得到 %q", c.in, got)
+		t.Run(c.name, func(t *testing.T) {
+			got, err := FirstGlobalIPv6(c.addrs)
+			if c.wantErr {
+				if err == nil {
+					t.Fatalf("应报错，得到 %q", got)
+				}
+				return
 			}
-			continue
-		}
-		if err != nil {
-			t.Errorf("ValidPublicIP(%q) 意外错误: %v", c.in, err)
-			continue
-		}
-		if got != c.want {
-			t.Errorf("ValidPublicIP(%q) = %q, want %q", c.in, got, c.want)
-		}
+			if err != nil {
+				t.Fatalf("意外错误: %v", err)
+			}
+			if got != c.want {
+				t.Fatalf("FirstGlobalIPv6 = %q, want %q", got, c.want)
+			}
+		})
 	}
 }
 
-func TestPublicIPWithProvidersFallback(t *testing.T) {
-	// 第一个源返回私网地址 → 校验拒绝，跳过；第二个源正常返回
-	bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("192.168.1.1"))
-	}))
-	defer bad.Close()
-	good := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("203.0.113.9"))
-	}))
-	defer good.Close()
-
-	ip, err := PublicIPWithProviders(context.Background(), bad.Client(), []string{bad.URL, good.URL})
-	if err != nil {
-		t.Fatalf("意外错误: %v", err)
-	}
-	if ip != "203.0.113.9" {
-		t.Fatalf("IP = %q, want 203.0.113.9", ip)
-	}
-}
-
-func TestPublicIPAllFail(t *testing.T) {
-	dead := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusBadGateway)
-	}))
-	defer dead.Close()
-	_, err := PublicIPWithProviders(context.Background(), dead.Client(), []string{dead.URL})
-	if err == nil {
-		t.Fatal("全部源失败时应返回错误")
+func TestPublicIPCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := PublicIP(ctx); !strings.Contains(err.Error(), context.Canceled.Error()) {
+		t.Fatalf("已取消的 ctx 应返回取消错误，得到: %v", err)
 	}
 }
